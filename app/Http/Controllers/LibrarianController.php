@@ -50,7 +50,7 @@ class LibrarianController extends Controller
     }
 
     /**
-     * Thêm đầu sách mới: Xử lý lưu ảnh tải từ thư mục máy tính & mô tả
+     * Thêm đầu sách mới
      */
     public function storeBook(Request $request)
     {
@@ -63,10 +63,9 @@ class LibrarianController extends Controller
             'publisher_id' => 'nullable',
             'total_qty' => 'required|integer|min:1',
             'shelf_location' => 'required|string',
-            'cover_image' => 'nullable|image|max:5120', // Tối đa 5MB
+            'cover_image' => 'nullable|image|max:5120',
         ]);
 
-        // 1. Xử lý Nhà xuất bản
         $publisherId = $request->publisher_id;
         if (!empty($request->publisher_name)) {
             $pub = Publisher::firstOrCreate(
@@ -79,7 +78,6 @@ class LibrarianController extends Controller
             $publisherId = $defaultPub->id;
         }
 
-        // 2. Xử lý Thể loại sách
         $categoryId = $request->category_id;
         if (!empty($request->category_name)) {
             $cat = Category::firstOrCreate(
@@ -92,14 +90,12 @@ class LibrarianController extends Controller
             $categoryId = $defaultCat->id;
         }
 
-        // 3. Xử lý nội dung mô tả & nhãn tag
         $description = $request->description ?? '';
         if (!empty($request->selected_tags)) {
             $tagText = "Thẻ thể loại chi tiết: " . $request->selected_tags;
             $description = !empty($description) ? ($description . " | " . $tagText) : $tagText;
         }
 
-        // 4. Xử lý upload ảnh bìa từ thư mục / máy tính hoặc chuỗi Base64
         $coverUrl = $request->cover_url;
         if ($request->hasFile('cover_image')) {
             $file = $request->file('cover_image');
@@ -181,38 +177,67 @@ class LibrarianController extends Controller
         return back()->with('success', "Đã xóa đầu sách '{$title}' khỏi hệ thống.");
     }
 
+    /**
+     * CẤP THẺ ĐỘC GIẢ: Bắt buộc đối soát đúng cả Email và Số điện thoại đã đăng ký
+     */
     public function storeReader(Request $request)
     {
         $request->validate([
-            'name' => 'required|string',
-            'email' => 'required|email|unique:users,email',
+            'email' => 'required|email',
             'phone' => 'required|string',
         ]);
 
-        $cardNumber = 'LIB-' . date('Y') . '-' . str_pad(rand(100, 9999), 4, '0', STR_PAD_LEFT);
+        $inputPhone = trim($request->phone);
+        $cleanPhone = preg_replace('/[^0-9]/', '', $inputPhone);
+        $normalizedPhone = ltrim($cleanPhone, '0');
 
-        $reader = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => bcrypt('123456'),
-            'role' => 'reader',
-            'card_number' => $cardNumber,
-            'card_expiry_date' => Carbon::now()->addYear(),
-            'status' => 'active',
-            'phone' => $request->phone,
-            'address' => $request->address,
-        ]);
+        // Tìm kiếm độc giả theo đúng Email và Số điện thoại đã đăng ký
+        $reader = User::where('role', 'reader')
+            ->where('email', trim($request->email))
+            ->where(function($q) use ($inputPhone, $cleanPhone, $normalizedPhone) {
+                $q->where('phone', $inputPhone)
+                  ->orWhere('phone', $cleanPhone)
+                  ->orWhere('phone', '0' . $normalizedPhone)
+                  ->orWhere('phone', '+84' . $normalizedPhone)
+                  ->orWhereRaw("REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '.', '') = ?", [$cleanPhone]);
+            })
+            ->first();
+
+        // 1. Nếu không tìm thấy hoặc sai thông tin
+        if (!$reader) {
+            return back()->with('error', "❌ Không tìm thấy tài khoản độc giả khớp với Email [{$request->email}] và Số điện thoại [{$request->phone}]! Vui lòng kiểm tra lại thông tin hoặc yêu cầu khách hàng đăng ký tài khoản trước.")->withInput();
+        }
+
+        // 2. Nếu tài khoản này đã có thẻ từ trước
+        if (!empty($reader->card_number)) {
+            $expiryStr = $reader->card_expiry_date ? Carbon::parse($reader->card_expiry_date)->format('d/m/Y') : 'Chưa hết hạn';
+            return back()->with('info', "ℹ️ Tài khoản độc giả [{$reader->name}] ({$reader->email}) đã được cấp thẻ trước đó (Mã thẻ: {$reader->card_number}, Hạn dùng: {$expiryStr}).");
+        }
+
+        // 3. Khớp thông tin và chưa có thẻ -> Cấp mã thẻ mới
+        $cardNumber = 'LIB-' . date('Y') . '-' . str_pad((string)rand(1000, 9999), 4, '0', STR_PAD_LEFT);
+        while (User::where('card_number', $cardNumber)->exists()) {
+            $cardNumber = 'LIB-' . date('Y') . '-' . str_pad((string)rand(1000, 9999), 4, '0', STR_PAD_LEFT);
+        }
+
+        $reader->card_number = $cardNumber;
+        $reader->card_expiry_date = Carbon::now()->addYear();
+        $reader->status = 'active';
+        if (!empty($request->name) && empty($reader->name)) {
+            $reader->name = trim($request->name);
+        }
+        $reader->save();
 
         AuditLog::create([
             'operator_name' => Auth::user() ? Auth::user()->name : 'Thủ thư',
             'operator_role' => 'librarian',
             'action' => 'ISSUE_READER_CARD',
             'target_id' => (string)$reader->id,
-            'details' => "Cấp mới thẻ độc giả #{$cardNumber} cho {$reader->name}",
+            'details' => "Đối soát thành công (Email: {$reader->email}, SĐT: {$reader->phone}) và cấp mã thẻ #{$cardNumber} cho độc giả {$reader->name}",
             'ip_address' => $request->ip()
         ]);
 
-        return back()->with('success', "Cấp thẻ độc giả thành công! Mã thẻ: {$cardNumber}");
+        return back()->with('success', "🎉 Cấp thẻ độc giả thành công! Tài khoản [{$reader->name}] (Email: {$reader->email} - SĐT: {$reader->phone}) đã được cấp Mã thẻ: {$cardNumber}.");
     }
 
     public function renewReaderCard(Request $request, $id)
@@ -285,6 +310,10 @@ class LibrarianController extends Controller
         $book = Book::findOrFail($request->book_id);
         $rules = SystemRule::first() ?? new SystemRule();
 
+        if (empty($reader->card_number)) {
+            return back()->with('error', 'Tài khoản độc giả chưa được cấp thẻ thư viện. Vui lòng cấp thẻ trước.');
+        }
+
         if ($reader->status === 'locked') {
             return back()->with('error', 'Thẻ độc giả đang bị khóa, không thể lập phiếu mượn.');
         }
@@ -311,7 +340,7 @@ class LibrarianController extends Controller
 
         $loanDays = $rules->max_loan_days ?? 14;
         $dueDate = Carbon::now()->addDays($loanDays);
-        $ticketCode = 'PM-' . date('Ymd') . '-' . str_pad(rand(10, 999), 3, '0', STR_PAD_LEFT);
+        $ticketCode = 'PM-' . date('Ymd') . '-' . str_pad((string)rand(10, 999), 3, '0', STR_PAD_LEFT);
 
         $ticket = BorrowTicket::create([
             'ticket_code' => $ticketCode,
@@ -346,9 +375,6 @@ class LibrarianController extends Controller
         return $this->issueBorrowTicket($request);
     }
 
-    /**
-     * BỔ SUNG: Thủ thư duyệt & bàn giao sách cho yêu cầu mượn trực tuyến
-     */
     public function approveBorrowTicket(Request $request, $id)
     {
         $ticket = BorrowTicket::with(['book', 'reader'])->findOrFail($id);
@@ -368,9 +394,6 @@ class LibrarianController extends Controller
         return back()->with('success', "Xác nhận duyệt & bàn giao sách '{$ticket->book->title}' cho độc giả {$ticket->reader->name} thành công!");
     }
 
-    /**
-     * BỔ SUNG: Thủ thư từ chối yêu cầu mượn và hoàn lại số lượng tồn kho
-     */
     public function rejectBorrowTicket(Request $request, $id)
     {
         $ticket = BorrowTicket::with(['book', 'reader'])->findOrFail($id);

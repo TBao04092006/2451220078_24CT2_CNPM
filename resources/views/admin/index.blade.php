@@ -197,9 +197,12 @@
                 <table class="w-full text-left text-xs">
                     <thead class="bg-slate-50 text-slate-600 uppercase text-[10px] font-bold">
                         <tr>
+                            <th class="p-3">Mã Thẻ</th>
                             <th class="p-3">Họ và tên</th>
-                            <th class="p-3">Email</th>
+                            <th class="p-3">Email đăng nhập</th>
+                            <th class="p-3">Số điện thoại</th>
                             <th class="p-3">Vai trò</th>
+                            <th class="p-3">Hạn Thẻ</th>
                             <th class="p-3">Trạng thái</th>
                             <th class="p-3 text-right">Khóa / Mở</th>
                         </tr>
@@ -207,13 +210,16 @@
                     <tbody class="divide-y divide-slate-100">
                         @foreach($staffUsers as $s)
                             <tr class="hover:bg-slate-50/80 transition">
+                                <td class="p-3 font-mono font-bold text-sky-700">{{ $s->card_number ?? '---' }}</td>
                                 <td class="p-3 font-semibold text-slate-900">{{ $s->name }}</td>
-                                <td class="p-3 text-slate-500">{{ $s->email }}</td>
+                                <td class="p-3 font-mono text-slate-600">{{ $s->email }}</td>
+                                <td class="p-3 text-slate-600">{{ $s->phone ?? '---' }}</td>
                                 <td class="p-3">
                                     <span class="px-2 py-0.5 rounded font-bold text-[10px] {{ $s->role === 'admin' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800' }}">
                                         {{ strtoupper($s->role) }}
                                     </span>
                                 </td>
+                                <td class="p-3 text-slate-600 font-mono">{{ $s->card_expiry_date ? \Carbon\Carbon::parse($s->card_expiry_date)->format('d/m/Y') : 'Không giới hạn' }}</td>
                                 <td class="p-3">
                                     <span class="px-2 py-0.5 rounded font-bold text-[10px] {{ $s->status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700' }}">
                                         {{ $s->status === 'active' ? 'Hoạt động' : 'Đã khóa' }}
@@ -423,37 +429,56 @@
     </div>
 </div>
 
-<!-- Modal: Thêm Nhân Sự -->
+<!-- Modal: Thêm Nhân Sự Mới (Đã bổ sung Mã Thẻ, Hạn Thẻ, SĐT) -->
 <div id="modal-add-staff" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm hidden items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-4 border border-slate-200">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-slate-200">
         <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h3 class="font-bold text-slate-900 text-sm">Cấp Mới Tài Khoản Nhân Sự</h3>
-            <button type="button" onclick="closeModal('modal-add-staff')" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+            <div>
+                <h3 class="font-bold text-slate-900 text-sm">Cấp Mới Tài Khoản Nhân Sự</h3>
+                <p class="text-[11px] text-slate-500">Tạo tài khoản phân quyền cho Thủ thư hoặc Quản trị viên</p>
+            </div>
+            <button type="button" onclick="closeModal('modal-add-staff')" class="text-slate-400 hover:text-slate-600 cursor-pointer"><i data-lucide="x" class="w-5 h-5"></i></button>
         </div>
         <form action="{{ route('admin.users.store') }}" method="POST" class="space-y-3">
             @csrf
             <div>
-                <label class="block text-xs font-semibold text-slate-700 mb-1">Họ và tên</label>
-                <input type="text" name="name" required class="w-full py-2 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl">
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Họ và tên <span class="text-red-500">*</span></label>
+                <input type="text" name="name" required placeholder="Nguyễn Văn A" class="w-full py-2 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:outline-none">
             </div>
-            <div>
-                <label class="block text-xs font-semibold text-slate-700 mb-1">Email đăng nhập</label>
-                <input type="email" name="email" required class="w-full py-2 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl">
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Email đăng nhập <span class="text-red-500">*</span></label>
+                    <input type="email" name="email" required placeholder="nhansu@libranova.vn" class="w-full py-2 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Số điện thoại</label>
+                    <input type="text" name="phone" placeholder="0901234567" class="w-full py-2 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:outline-none">
+                </div>
             </div>
-            <div>
-                <label class="block text-xs font-semibold text-slate-700 mb-1">Số điện thoại</label>
-                <input type="text" name="phone" class="w-full py-2 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl">
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Mã thẻ nhân sự</label>
+                    <input type="text" name="card_number" placeholder="Tự sinh (vd: LIB-STAFF-02)" class="w-full py-2 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:outline-none font-mono">
+                    <p class="text-[10px] text-slate-400 mt-0.5">Để trống hệ thống tự cấp mã</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Hạn thẻ</label>
+                    <input type="date" name="card_expiry_date" value="2030-12-31" class="w-full py-2 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:outline-none font-mono">
+                    <p class="text-[10px] text-slate-400 mt-0.5">Mặc định 5 năm (2030)</p>
+                </div>
             </div>
             <div>
                 <label class="block text-xs font-semibold text-slate-700 mb-1">Vai trò</label>
-                <select name="role" class="w-full py-2 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl">
+                <select name="role" class="w-full py-2 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:outline-none">
                     <option value="librarian">Thủ thư vận hành</option>
                     <option value="admin">Quản trị viên hệ thống</option>
                 </select>
             </div>
-            <p class="text-[11px] text-slate-400">Mật khẩu mặc định khởi tạo: <strong>123456</strong></p>
-            <button type="submit" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl shadow transition">
-                Tạo Tài Khoản Nhân Sự
+            <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[11px] text-slate-500">
+                Mật khẩu mặc định khởi tạo: <span class="font-mono font-bold text-slate-800">123456</span>
+            </div>
+            <button type="submit" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl shadow transition cursor-pointer flex items-center justify-center gap-2">
+                <span>Tạo Tài Khoản Nhân Sự</span>
             </button>
         </form>
     </div>
@@ -552,6 +577,9 @@
         const params = new URLSearchParams(window.location.search);
         if (params.get('active_tab') === 'tab-inventory' || params.has('book_keyword') || params.has('book_tags') || params.has('stock_status')) {
             switchAdminTab('tab-inventory');
+        }
+        if (window.lucide) {
+            window.lucide.createIcons();
         }
     });
 </script>

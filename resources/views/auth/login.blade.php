@@ -3,334 +3,251 @@
 @section('title', 'Đăng Nhập Hệ Thống')
 
 @section('content')
-<div class="min-h-[calc(100vh-12rem)] flex items-center justify-center py-6">
-    <div class="w-full max-w-4xl bg-white rounded-3xl shadow-xl border border-slate-200/90 overflow-hidden grid grid-cols-1 lg:grid-cols-12 relative z-10">
-        <!-- Left Branding Panel -->
-        <div class="lg:col-span-5 bg-gradient-to-br from-slate-900 via-indigo-950 to-blue-950 text-white p-8 sm:p-10 flex flex-col justify-between relative overflow-hidden">
-            <div class="relative z-10">
-                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-sky-300 text-xs font-medium backdrop-blur-md mb-6 border border-white/10">
-                    <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
-                    Hệ Thống Quản Lý Thư Viện
-                </div>
-                <h1 class="text-3xl font-bold font-serif tracking-tight text-white mb-2">LibraNova</h1>
-                <p class="text-slate-300 text-xs leading-relaxed">
-                    Tự động hóa toàn diện quy trình vận hành kho sách, mượn trả, tính phạt trễ hạn tự động và cổng thanh toán trực tuyến VietQR.
-                </p>
-            </div>
-
-            <div class="relative z-10 mt-8 space-y-3">
-                <div class="flex items-center gap-3 text-xs text-slate-300">
-                    <div class="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center text-sky-400">
-                        <i data-lucide="book-check" class="w-4 h-4"></i>
-                    </div>
-                    <span>Quản lý kho sách & định vị vị trí kệ</span>
-                </div>
-                <div class="flex items-center gap-3 text-xs text-slate-300">
-                    <div class="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center text-emerald-400">
-                        <i data-lucide="qr-code" class="w-4 h-4"></i>
-                    </div>
-                    <span>Nộp phạt trễ hạn & gia hạn qua VietQR</span>
-                </div>
-                <div class="flex items-center gap-3 text-xs text-slate-300">
-                    <div class="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center text-amber-400">
-                        <i data-lucide="lock" class="w-4 h-4"></i>
-                    </div>
-                    <span>Kiểm soát an toàn & ghi nhận Audit Log</span>
-                </div>
-            </div>
-
-            <!-- Quick accounts hint -->
-            <div class="relative z-10 mt-6 pt-4 border-t border-white/10 text-[11px] text-slate-400">
-                <div class="font-semibold text-slate-300 mb-1">Tài khoản demo (Mật khẩu: 123456):</div>
-                <div class="space-y-0.5">
-                    <div>• Độc giả: <code class="text-sky-300">an.nguyen@libranova.vn</code></div>
-                    <div>• Thủ thư: <code class="text-purple-300">thuthu@libranova.vn</code></div>
-                    <div>• Admin: <code class="text-amber-300">admin@libranova.vn</code></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Right Form Panel -->
-        <div class="lg:col-span-7 p-8 sm:p-10 flex flex-col justify-center bg-white">
-            <div class="mb-5">
-                <h2 class="text-xl font-bold text-slate-900 tracking-tight">Đăng nhập tài khoản</h2>
-                <p class="text-xs text-slate-500 mt-1">Chọn phân hệ làm việc hoặc nhấn chọn tài khoản mẫu để đăng nhập ngay</p>
-            </div>
-
-            <!-- Role Selector Tabs -->
-            <div class="grid grid-cols-3 gap-2 p-1.5 bg-slate-100/90 rounded-2xl mb-5">
-                <button type="button" onclick="selectRole('reader')" id="btn-role-reader" class="role-tab active flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-semibold transition bg-white text-blue-700 shadow-sm">
-                    <i data-lucide="user" class="w-3.5 h-3.5"></i>
-                    Độc giả
-                </button>
-                <button type="button" onclick="selectRole('librarian')" id="btn-role-librarian" class="role-tab flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-medium text-slate-600 hover:text-slate-900 transition">
-                    <i data-lucide="bookmark" class="w-3.5 h-3.5"></i>
-                    Thủ thư
-                </button>
-                <button type="button" onclick="selectRole('admin')" id="btn-role-admin" class="role-tab flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-medium text-slate-600 hover:text-slate-900 transition">
-                    <i data-lucide="shield" class="w-3.5 h-3.5"></i>
-                    Admin
-                </button>
-            </div>
-
-            <form action="{{ route('login.post') }}" method="POST" class="space-y-4">
-                @csrf
-                <input type="hidden" name="role" id="selected_role" value="reader">
-
-                <div>
-                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Địa chỉ Email</label>
-                    <div class="relative">
-                        <i data-lucide="mail" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
-                        <input type="email" name="email" id="login-email" required
-                            class="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition"
-                            placeholder="an.nguyen@libranova.vn" value="{{ old('email', 'an.nguyen@libranova.vn') }}">
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Mật khẩu</label>
-                    <div class="relative">
-                        <i data-lucide="lock" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
-                        <input type="password" name="password" id="login-password" required
-                            class="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition"
-                            placeholder="••••••••" value="123456">
-                    </div>
-                </div>
-
-                <div class="flex items-center justify-between text-xs text-slate-500">
-                    <label class="flex items-center gap-2 cursor-pointer select-none">
-                        <input type="checkbox" name="remember" class="rounded text-sky-600 border-slate-300 focus:ring-sky-500" checked>
-                        <span>Ghi nhớ đăng nhập</span>
-                    </label>
-                    <button type="button" onclick="openForgotPasswordModal()" class="text-sky-600 hover:text-sky-800 font-medium transition cursor-pointer hover:underline">
-                        Quên mật khẩu?
-                    </button>
-                </div>
-
-                <button type="submit" class="w-full py-2.5 px-4 bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold rounded-xl shadow-md transition flex items-center justify-center gap-2">
-                    <span>Truy cập hệ thống</span>
-                    <i data-lucide="arrow-right" class="w-4 h-4"></i>
-                </button>
-            </form>
-
-            <!-- Register Section -->
-            <div class="mt-6 pt-5 border-t border-slate-100 flex items-center justify-between text-xs">
-                <span class="text-slate-500">Chưa có thẻ thư viện độc giả?</span>
-                <button type="button" onclick="openRegisterModal()" class="inline-flex items-center gap-1.5 text-sky-600 hover:text-sky-700 font-semibold transition hover:underline">
-                    <i data-lucide="user-plus" class="w-3.5 h-3.5"></i>
-                    Đăng ký tài khoản mới
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- ================= MODAL: QUÊN MẬT KHẨU ================= -->
-<div id="forgot-password-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 sm:p-7 border border-slate-200 relative animate-in fade-in zoom-in duration-200">
-        <button type="button" onclick="closeForgotPasswordModal()" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100">
-            <i data-lucide="x" class="w-5 h-5"></i>
+<div class="max-w-md mx-auto my-6 sm:my-8 space-y-4">
+    <!-- 1. BỘ CHỌN NHANH VAI TRÒ (ĐỘC GIẢ - THỦ THƯ - ADMIN) -->
+    <div class="bg-white/80 backdrop-blur-sm p-1.5 rounded-2xl border border-slate-200/90 shadow-xs flex items-center gap-1">
+        <button type="button" onclick="selectRole('reader', 'docgia@gmail.com')" id="role-btn-reader" class="flex-1 py-2 px-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 bg-blue-600 text-white shadow-xs">
+            <i data-lucide="book-open" class="w-3.5 h-3.5"></i>
+            <span>Độc Giả</span>
         </button>
 
-        <div class="flex items-center gap-3 mb-4">
-            <div class="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-200">
-                <i data-lucide="key-round" class="w-5 h-5"></i>
+        <button type="button" onclick="selectRole('librarian', 'thuthu@gmail.com')" id="role-btn-librarian" class="flex-1 py-2 px-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 text-slate-600 hover:text-slate-900">
+            <i data-lucide="library" class="w-3.5 h-3.5"></i>
+            <span>Thủ Thư</span>
+        </button>
+
+        <button type="button" onclick="selectRole('admin', 'admin@gmail.com')" id="role-btn-admin" class="flex-1 py-2 px-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 text-slate-600 hover:text-slate-900">
+            <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+            <span>Quản Trị</span>
+        </button>
+    </div>
+
+    <!-- 2. KHUNG FORM ĐĂNG NHẬP -->
+    <div class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xl space-y-6">
+        <div class="text-center space-y-1.5">
+            <div id="role-icon-box" class="w-12 h-12 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center mx-auto shadow-xs">
+                <i data-lucide="log-in" class="w-6 h-6"></i>
             </div>
-            <div>
-                <h3 class="text-base font-bold text-slate-900">Khôi phục & Đặt lại mật khẩu</h3>
-                <p class="text-xs text-slate-500">Tự động đặt lại mật khẩu và mở khóa tài khoản</p>
-            </div>
+            <h1 class="text-xl font-bold text-slate-900" id="login-heading">Đăng Nhập Cổng Độc Giả</h1>
+            <p class="text-xs text-slate-500" id="login-subheading">Truy cập mượn sách, tra cứu và gia hạn thẻ thư viện</p>
         </div>
 
-        <form action="{{ route('password.reset.direct') }}" method="POST" class="space-y-4">
+        {{-- Hiển thị thông báo lỗi hoặc thành công nếu có --}}
+        @if(session('error'))
+            <div class="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs flex items-center gap-2">
+                <i data-lucide="alert-circle" class="w-4 h-4 flex-shrink-0 text-red-500"></i>
+                <span>{{ session('error') }}</span>
+            </div>
+        @endif
+
+        @if(session('success'))
+            <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-xs flex items-center gap-2">
+                <i data-lucide="check-circle" class="w-4 h-4 flex-shrink-0 text-emerald-500"></i>
+                <span>{{ session('success') }}</span>
+            </div>
+        @endif
+
+        <form action="{{ route('login.post') }}" method="POST" class="space-y-4">
             @csrf
             <div>
-                <label class="block text-xs font-semibold text-slate-700 mb-1">Email tài khoản</label>
+                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Địa chỉ Email</label>
                 <div class="relative">
                     <i data-lucide="mail" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
-                    <input type="email" name="email" id="forgot-email" required
-                        class="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
-                        placeholder="Nhập email cần đặt lại (VD: an.nguyen@libranova.vn)">
+                    <input type="email" name="email" id="email-input" value="{{ old('email', 'an.nguyen@libranova.vn') }}" required class="w-full pl-10 pr-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:bg-white transition" placeholder="email@libranova.vn">
                 </div>
+                @error('email')
+                    <p class="mt-1 text-[11px] text-red-500">{{ $message }}</p>
+                @enderror
             </div>
 
             <div>
-                <label class="block text-xs font-semibold text-slate-700 mb-1">Mật khẩu mới (tối thiểu 6 ký tự)</label>
+                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Mật khẩu</label>
                 <div class="relative">
                     <i data-lucide="lock" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
-                    <input type="password" name="new_password" required minlength="6"
-                        class="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
-                        placeholder="Nhập mật khẩu mới (VD: 123456)">
+                    <input type="password" name="password" id="password-input" required value="" class="w-full pl-10 pr-10 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:bg-white transition" placeholder="••••••••">
+                    <button type="button" onclick="togglePasswordVisibility('password-input', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition p-1">
+                        <i data-lucide="eye" class="w-4 h-4 eye-open"></i>
+                        <i data-lucide="eye-off" class="w-4 h-4 eye-closed hidden"></i>
+                    </button>
                 </div>
+                @error('password')
+                    <p class="mt-1 text-[11px] text-red-500">{{ $message }}</p>
+                @enderror
             </div>
 
-            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-600 leading-relaxed">
-                💡 <span class="font-semibold text-slate-800">Lưu ý bảo mật:</span> Sau khi đặt lại, nếu tài khoản của bạn đang bị khóa do nhập sai nhiều lần, hệ thống sẽ tự động mở khóa trạng thái hoạt động ngay lập tức.
+            <div class="flex items-center justify-between text-xs pt-1">
+                <label class="flex items-center gap-2 cursor-pointer text-slate-600">
+                    <input type="checkbox" name="remember" checked class="rounded border-slate-300 text-sky-600 focus:ring-sky-500">
+                    <span>Ghi nhớ đăng nhập</span>
+                </label>
+                <a href="{{ route('password.request') }}" class="text-sky-600 hover:text-sky-700 font-semibold transition">
+                    Quên mật khẩu?
+                </a>
             </div>
 
-            <div class="flex items-center justify-end gap-2 pt-2">
-                <button type="button" onclick="closeForgotPasswordModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition">
-                    Hủy bỏ
-                </button>
-                <button type="submit" class="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold rounded-xl shadow-md transition flex items-center gap-1.5">
-                    <i data-lucide="check" class="w-4 h-4"></i>
-                    <span>Cập nhật mật khẩu mới</span>
-                </button>
-            </div>
+            <button type="submit" id="submit-btn" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-xl shadow transition flex items-center justify-center gap-2">
+                <span>Truy cập hệ thống</span>
+                <i data-lucide="arrow-right" class="w-4 h-4"></i>
+            </button>
         </form>
+
+        <div class="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+            2024 © <span class="font-semibold text-slate-700">Libranova</span>
+            <a href="{{ route('register') }}" class="font-semibold text-sky-600 hover:text-sky-700 flex items-center gap-1">
+                <i data-lucide="user-plus" class="w-3.5 h-3.5"></i>
+                Đăng ký tài khoản mới
+            </a>
+        </div>
+    </div>
+
+    <!-- 3. NÚT BÁO CÁO ADMIN CHO THỦ THƯ & ĐỘC GIẢ -->
+    <div class="text-center pt-1">
+        <button type="button" onclick="openReportAdminModal()" class="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-rose-600 transition font-medium">
+            <i data-lucide="help-circle" class="w-4 h-4 text-slate-400"></i>
+            <span>Gặp sự cố đăng nhập?</span>
+            <strong class="underline">Báo cáo Admin</strong>
+        </button>
     </div>
 </div>
 
-<!-- ================= MODAL: ĐĂNG KÝ ĐỘC GIẢ MỚI ================= -->
-<div id="register-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 sm:p-8 border border-slate-200 relative animate-in fade-in zoom-in duration-200 max-h-[90vh] overflow-y-auto">
-        <button type="button" onclick="closeRegisterModal()" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100">
-            <i data-lucide="x" class="w-5 h-5"></i>
-        </button>
-
-        <div class="flex items-center gap-3 mb-5">
-            <div class="w-10 h-10 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center border border-sky-200">
-                <i data-lucide="user-plus" class="w-5 h-5"></i>
+<!-- MODAL: BÁO CÁO SỰ CỐ CHO QUẢN TRỊ VIÊN -->
+<div id="modal-report-admin" class="fixed inset-0 z-[100] bg-slate-950/60 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-slate-200">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center">
+                    <i data-lucide="alert-octagon" class="w-4 h-4"></i>
+                </div>
+                <h3 class="font-bold text-slate-900 text-sm">Báo Cáo Sự Cố Cho Quản Trị Viên</h3>
             </div>
-            <div>
-                <h3 class="text-lg font-bold text-slate-900">Đăng ký Thẻ Độc Giả</h3>
-                <p class="text-xs text-slate-500">Cấp mã thẻ thư viện điện tử miễn phí tức thì</p>
-            </div>
+            <button type="button" onclick="closeModal('modal-report-admin')" class="text-slate-400 hover:text-slate-600">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
         </div>
 
-        <form action="{{ route('register.post') }}" method="POST" class="space-y-3.5">
+        <form action="{{ route('report.admin') }}" method="POST" class="space-y-3.5">
             @csrf
             <div>
-                <label class="block text-xs font-semibold text-slate-700 mb-1">Họ và tên độc giả <span class="text-red-500">*</span></label>
-                <input type="text" name="name" required
-                    class="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
-                    placeholder="Nguyễn Văn A">
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-xs font-semibold text-slate-700 mb-1">Email đăng ký <span class="text-red-500">*</span></label>
-                    <input type="email" name="email" required
-                        class="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
-                        placeholder="docgia@gmail.com">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-700 mb-1">Số điện thoại</label>
-                    <input type="tel" name="phone"
-                        class="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
-                        placeholder="0912345678">
-                </div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Họ tên / Email / Mã số thẻ</label>
+                <input type="text" name="reporter_info" required placeholder="Nhập email hoặc họ tên của bạn..." class="w-full py-2 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20">
             </div>
 
             <div>
-                <label class="block text-xs font-semibold text-slate-700 mb-1">Địa chỉ cư trú</label>
-                <input type="text" name="address"
-                    class="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
-                    placeholder="Quận/Huyện, Tỉnh/TP">
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Vấn đề gặp phải</label>
+                <select name="issue_type" id="report-issue-type" onchange="toggleReportReason(this.value)" class="w-full py-2 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl font-medium">
+                    <option value="Tài khoản">Tài khoản (Quên mật khẩu, Bị khóa tài khoản, Hết hạn thẻ)</option>
+                    <option value="Lý do khác">Lý do khác (Nhập chi tiết bên dưới)</option>
+                </select>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-xs font-semibold text-slate-700 mb-1">Mật khẩu (tối thiểu 6 ký tự) <span class="text-red-500">*</span></label>
-                    <input type="password" name="password" required minlength="6"
-                        class="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
-                        placeholder="••••••••">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-700 mb-1">Xác nhận mật khẩu <span class="text-red-500">*</span></label>
-                    <input type="password" name="password_confirmation" required minlength="6"
-                        class="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
-                        placeholder="••••••••">
-                </div>
+            <div id="div-custom-reason" class="hidden">
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Lý do khác: Nhập lý do cụ thể</label>
+                <textarea name="custom_reason" id="custom-reason-input" rows="3" class="w-full py-2 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20" placeholder="Mô tả chi tiết sự cố bạn đang gặp phải..."></textarea>
             </div>
 
-            <div class="p-3 bg-sky-50/70 rounded-xl border border-sky-100 text-[11px] text-sky-800 space-y-1">
-                <div class="font-semibold flex items-center gap-1.5">
-                    <i data-lucide="sparkles" class="w-3.5 h-3.5 text-sky-600"></i>
-                    Quyền lợi thẻ độc giả LibraNova:
-                </div>
-                <div>• Mượn tối đa 5 cuốn sách đồng thời trong 14 ngày.</div>
-                <div>• Tự gia hạn mượn sách trực tuyến và nhận thông báo hạn trả qua Email.</div>
-            </div>
-
-            <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-                <button type="button" onclick="closeRegisterModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition">
-                    Đóng
+            <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
+                <button type="button" onclick="closeModal('modal-report-admin')" class="w-1/3 py-2 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition">
+                    Hủy
                 </button>
-                <button type="submit" class="px-5 py-2.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold rounded-xl shadow-md transition flex items-center gap-1.5">
-                    <i data-lucide="check" class="w-4 h-4"></i>
-                    <span>Tạo thẻ & Đăng nhập ngay</span>
+                <button type="submit" class="w-2/3 py-2 text-xs bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl shadow transition flex items-center justify-center gap-1.5">
+                    <i data-lucide="send" class="w-3.5 h-3.5"></i>
+                    <span>Gửi Báo Cáo</span>
                 </button>
             </div>
         </form>
     </div>
 </div>
-    <button type="button" onclick="openForgotPasswordModal()" class="text-sky-600 hover:text-sky-800 font-medium transition cursor-pointer hover:underline">
-        Quên mật khẩu?
-    </button>
 
-    <button type="button" onclick="openRegisterModal()" class="inline-flex items-center gap-1.5 text-sky-600 hover:text-sky-700 font-semibold transition hover:underline">
-        <i data-lucide="user-plus" class="w-3.5 h-3.5"></i>
-        Đăng ký tài khoản mới
-    </button>
-
-    <form action="{{ route('password.reset.direct') }}" method="POST">
-    @csrf
-    ...
-    </form>
 <script>
-    function selectRole(role) {
-        document.getElementById('selected_role').value = role;
-        const emailInput = document.getElementById('login-email');
-        const passInput = document.getElementById('login-password');
-        
-        document.querySelectorAll('.role-tab').forEach(b => {
-            b.className = 'role-tab flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-medium text-slate-600 hover:text-slate-900 transition';
+    function selectRole(role, defaultEmail) {
+        const btnReader = document.getElementById('role-btn-reader');
+        const btnLibrarian = document.getElementById('role-btn-librarian');
+        const btnAdmin = document.getElementById('role-btn-admin');
+        const emailInput = document.getElementById('email-input');
+        const passInput = document.getElementById('password-input');
+        const heading = document.getElementById('login-heading');
+        const subheading = document.getElementById('login-subheading');
+        const submitBtn = document.getElementById('submit-btn');
+
+        // Reset all buttons style
+        [btnReader, btnLibrarian, btnAdmin].forEach(btn => {
+            btn.className = 'flex-1 py-2 px-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 text-slate-600 hover:text-slate-900';
         });
 
-        const activeBtn = document.getElementById(`btn-role-${role}`);
         if (role === 'reader') {
-            activeBtn.className = 'role-tab active flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-semibold transition bg-white text-blue-700 shadow-sm';
-            emailInput.value = 'an.nguyen@libranova.vn';
-            passInput.value = '123456';
+            btnReader.className = 'flex-1 py-2 px-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 bg-blue-600 text-white shadow-xs';
+            heading.textContent = 'Đăng Nhập Cổng Độc Giả';
+            subheading.textContent = 'Truy cập mượn sách, tra cứu và gia hạn thẻ thư viện';
+            submitBtn.className = 'w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-xl shadow transition flex items-center justify-center gap-2';
         } else if (role === 'librarian') {
-            activeBtn.className = 'role-tab active flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-semibold transition bg-white text-purple-700 shadow-sm';
-            emailInput.value = 'thuthu@libranova.vn';
-            passInput.value = '123456';
+            btnLibrarian.className = 'flex-1 py-2 px-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 bg-purple-600 text-white shadow-xs';
+            heading.textContent = 'Đăng Nhập Cổng Thủ Thư';
+            subheading.textContent = 'Bàn vận hành quản lý kho sách, lập phiếu mượn trả & tạo VietQR';
+            submitBtn.className = 'w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs rounded-xl shadow transition flex items-center justify-center gap-2';
+        } else if (role === 'admin') {
+            btnAdmin.className = 'flex-1 py-2 px-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 bg-amber-600 text-white shadow-xs';
+            heading.textContent = 'Đăng Nhập Ban Quản Trị';
+            subheading.textContent = 'Cấu hình quy định hệ thống, duyệt đề xuất & kiểm kê kho';
+            submitBtn.className = 'w-full py-3 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs rounded-xl shadow transition flex items-center justify-center gap-2';
+        }
+
+        if (emailInput) {
+            emailInput.value = defaultEmail;
+        }
+        if (passInput) {
+            passInput.value = 'password';
+        }
+
+        if (window.lucide) {
+            window.lucide.createIcons();
+        }
+    }
+
+    function togglePasswordVisibility(inputId, btnEl) {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+        const isPassword = input.type === 'password';
+        input.type = isPassword ? 'text' : 'password';
+
+        const eyeOpen = btnEl.querySelector('.eye-open');
+        const eyeClosed = btnEl.querySelector('.eye-closed');
+        if (eyeOpen && eyeClosed) {
+            if (isPassword) {
+                eyeOpen.classList.add('hidden');
+                eyeClosed.classList.remove('hidden');
+            } else {
+                eyeOpen.classList.remove('hidden');
+                eyeClosed.classList.add('hidden');
+            }
+        }
+        if (window.lucide && window.lucide.createIcons) {
+            lucide.createIcons();
+        }
+    }
+
+    function openReportAdminModal() {
+        const m = document.getElementById('modal-report-admin');
+        if (m) {
+            m.classList.remove('hidden');
+            m.classList.add('flex');
+        }
+    }
+
+    function closeModal(id) {
+        const m = document.getElementById(id);
+        if (m) {
+            m.classList.remove('flex');
+            m.classList.add('hidden');
+        }
+    }
+
+    function toggleReportReason(val) {
+        const divReason = document.getElementById('div-custom-reason');
+        if (val === 'Lý do khác') {
+            divReason.classList.remove('hidden');
         } else {
-            activeBtn.className = 'role-tab active flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-semibold transition bg-white text-amber-800 shadow-sm';
-            emailInput.value = 'admin@libranova.vn';
-            passInput.value = '123456';
-        }
+            divReason.classList.add('hidden');
+        }s
     }
-
-    function openForgotPasswordModal() {
-        const currentEmail = document.getElementById('login-email').value;
-        if (currentEmail) {
-            document.getElementById('forgot-email').value = currentEmail;
-        }
-        document.getElementById('forgot-password-modal').classList.remove('hidden');
-    }
-
-    function closeForgotPasswordModal() {
-        document.getElementById('forgot-password-modal').classList.add('hidden');
-    }
-
-    function openRegisterModal() {
-        document.getElementById('register-modal').classList.remove('hidden');
-    }
-
-    function closeRegisterModal() {
-        document.getElementById('register-modal').classList.add('hidden');
-    }
-
-    // Close modals on clicking backdrop
-    window.addEventListener('click', function(e) {
-        const forgotModal = document.getElementById('forgot-password-modal');
-        const registerModal = document.getElementById('register-modal');
-        if (e.target === forgotModal) closeForgotPasswordModal();
-        if (e.target === registerModal) closeRegisterModal();
-    });
-
 </script>
 @endsection

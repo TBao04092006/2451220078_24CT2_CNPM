@@ -38,3 +38,12 @@ body {
 .transition-all-custom {
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+/* Modal layers & z-index hierarchy - Đảm bảo modal chọn tag luôn nổi lên trên cùng */
+#modal-category-tags {
+    z-index: 9999 !important;
+}
+
+#modal-add-book {
+    z-index: 1000 !important;
+}

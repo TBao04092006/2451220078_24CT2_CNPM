@@ -151,16 +151,38 @@ class AdminController extends Controller
     public function storeStaff(Request $request)
     {
         $request->validate([
-            'name' => 'required|string',
+            'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
-            'role' => 'required|in:librarian,admin'
+            'role' => 'required|in:librarian,admin',
+            'card_number' => 'nullable|string|unique:users,card_number',
+            'card_expiry_date' => 'nullable|date',
+            'phone' => 'nullable|string|max:20',
         ]);
+
+        // Tự động sinh mã thẻ nếu để trống
+        $cardNumber = $request->filled('card_number') ? trim($request->card_number) : null;
+        if (empty($cardNumber)) {
+            $prefix = $request->role === 'admin' ? 'LIB-ADMIN' : 'LIB-STAFF';
+            $count = User::where('role', $request->role)->count() + 1;
+            $cardNumber = sprintf("%s-%02d", $prefix, $count);
+            while (User::where('card_number', $cardNumber)->exists()) {
+                $count++;
+                $cardNumber = sprintf("%s-%02d", $prefix, $count);
+            }
+        }
+
+        // Hạn thẻ mặc định 5 năm nếu để trống
+        $cardExpiryDate = $request->filled('card_expiry_date') 
+            ? $request->card_expiry_date 
+            : now()->addYears(5)->format('Y-12-31');
 
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => bcrypt('123456'),
             'role' => $request->role,
+            'card_number' => $cardNumber,
+            'card_expiry_date' => $cardExpiryDate,
             'status' => 'active',
             'phone' => $request->phone,
         ]);
@@ -170,11 +192,19 @@ class AdminController extends Controller
             'operator_role' => 'admin',
             'action' => 'CREATE_STAFF_ACCOUNT',
             'target_id' => (string)$user->id,
-            'details' => "Tạo mới tài khoản nhân sự: {$user->name} ({$user->role})",
+            'details' => "Tạo mới tài khoản nhân sự: {$user->name} ({$user->role}, Mã thẻ: {$user->card_number}, Hạn: {$user->card_expiry_date})",
             'ip_address' => $request->ip()
         ]);
 
-        return back()->with('success', "Tạo tài khoản nhân sự '{$user->name}' thành công!");
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Tạo tài khoản nhân sự '{$user->name}' thành công! Mã thẻ: {$user->card_number}",
+                'user' => $user
+            ]);
+        }
+
+        return back()->with('success', "Tạo tài khoản nhân sự '{$user->name}' thành công! Mã thẻ: {$user->card_number}");
     }
 
     public function toggleStaffLock(Request $request, $id)

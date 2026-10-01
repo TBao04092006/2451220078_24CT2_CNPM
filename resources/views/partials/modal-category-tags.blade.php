@@ -1,6 +1,6 @@
 <!-- ================= MODAL: CHỌN THỂ LOẠI & THẺ TAG CHI TIẾT ================= -->
-<div id="modal-category-tags" class="fixed inset-0 z-[70] bg-slate-950/70 backdrop-blur-xs hidden items-center justify-center p-3 sm:p-5">
-    <div class="bg-white rounded-3xl max-w-4xl w-full p-5 sm:p-6 shadow-2xl border border-slate-200 relative max-h-[92vh] flex flex-col animate-in fade-in zoom-in duration-150">
+<div id="modal-category-tags" class="fixed inset-0 z-[9999] bg-slate-950/70 backdrop-blur-xs hidden items-center justify-center p-3 sm:p-5" style="z-index: 9999 !important;">
+    <div class="bg-white rounded-3xl max-w-4xl w-full p-5 sm:p-6 shadow-2xl border border-slate-200 relative max-h-[92vh] flex flex-col animate-in fade-in zoom-in duration-150" style="z-index: 10000 !important;">
         <!-- Header -->
         <div class="flex items-center justify-between border-b border-slate-100 pb-3">
             <div>

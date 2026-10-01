@@ -7,288 +7,252 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
 use App\Models\AuditLog;
-use App\Models\SystemRule;
 use Carbon\Carbon;
 
 class AuthController extends Controller
 {
     /**
-     * Tự động kiểm tra và khởi tạo dữ liệu mẫu nếu database đang trống.
-     */
-    protected function ensureDefaultSeed()
-    {
-        try {
-            if (User::count() === 0 || !User::where('email', 'admin@libranova.vn')->exists()) {
-                // 1. Quy định hệ thống mặc định
-                if (!SystemRule::first()) {
-                    SystemRule::create([
-                        'max_books_per_loan' => 5,
-                        'max_loan_days' => 14,
-                        'fine_per_day' => 5000,
-                        'card_renewal_fee' => 30000,
-                        'max_renewal_times' => 2,
-                        'session_timeout_minutes' => 15,
-                        'max_failed_logins' => 5,
-                        'bank_name' => 'MB Bank (Ngân hàng Quân Đội)',
-                        'bank_account' => '0987654321',
-                        'account_holder' => 'THU VIEN LIBRANOVA QUOC GIA'
-                    ]);
-                }
-
-                // 2. Tài khoản Độc giả mẫu
-                User::firstOrCreate(
-                    ['email' => 'an.nguyen@libranova.vn'],
-                    [
-                        'name' => 'Nguyễn Văn An',
-                        'password' => Hash::make('123456'),
-                        'role' => 'reader',
-                        'card_number' => 'LIB-2026-8899',
-                        'card_expiry_date' => Carbon::now()->addYear(),
-                        'status' => 'active',
-                        'phone' => '0901234567',
-                        'address' => 'Hà Nội'
-                    ]
-                );
-
-                // 3. Tài khoản Thủ thư mẫu
-                User::firstOrCreate(
-                    ['email' => 'thuthu@libranova.vn'],
-                    [
-                        'name' => 'Trần Thu Thư',
-                        'password' => Hash::make('123456'),
-                        'role' => 'librarian',
-                        'status' => 'active',
-                        'phone' => '0912345678',
-                        'address' => 'Thư viện LibraNova Trụ Sở Chính'
-                    ]
-                );
-
-                // 4. Tài khoản Quản trị viên (Admin) mẫu
-                User::firstOrCreate(
-                    ['email' => 'admin@libranova.vn'],
-                    [
-                        'name' => 'Phạm Quang Admin',
-                        'password' => Hash::make('123456'),
-                        'role' => 'admin',
-                        'status' => 'active',
-                        'phone' => '0988888888',
-                        'address' => 'Ban Giám Đốc Thư viện LibraNova'
-                    ]
-                );
-            }
-        } catch (\Exception $e) {
-            // Tránh ngắt quãng nếu các bảng database chưa hoàn tất migration
-        }
-    }
-
-    /**
-     * Hiển thị giao diện đăng nhập (Tự động chuyển hướng nếu đã đăng nhập trước đó)
+     * Hiển thị giao diện Đăng Nhập
      */
     public function showLoginForm()
     {
-        $this->ensureDefaultSeed();
+        $this->ensureDemoAccountsExist();
 
         if (Auth::check()) {
-            /** @var \App\Models\User $user */
-            $user = Auth::user();
-
-            // Kiểm tra role và điều hướng tương ứng
-            switch ($user->role) {
-                case 'admin':
-                    return redirect()->route('admin.index');
-                case 'librarian':
-                    return redirect()->route('librarian.index');
-                case 'reader':
-                default:
-                    return redirect()->route('reader.index');
-            }
+            return $this->redirectBasedOnRole(Auth::user());
         }
 
         return view('auth.login');
     }
 
     /**
-     * Xử lý xác thực đăng nhập và điều hướng chính xác theo Role
+     * Xử lý đăng nhập hệ thống (BẮT BUỘC MẬT KHẨU PHẢI ĐÚNG)
      */
     public function login(Request $request)
     {
-        $this->ensureDefaultSeed();
-
-        // 1. Validate dữ liệu đầu vào
         $request->validate([
             'email' => 'required|email',
-            'password' => 'required'
+            'password' => 'required',
         ], [
             'email.required' => 'Vui lòng nhập địa chỉ email.',
             'email.email' => 'Địa chỉ email không đúng định dạng.',
-            'password.required' => 'Vui lòng nhập mật khẩu.'
+            'password.required' => 'Vui lòng nhập mật khẩu.',
         ]);
+
+        $this->ensureDemoAccountsExist();
 
         $email = strtolower(trim($request->email));
+        $password = $request->password;
+        $remember = $request->has('remember');
+
+        // Tìm kiếm người dùng theo email
         $user = User::where('email', $email)->first();
 
-        // Tự động tạo nếu là tài khoản demo mà chưa có trong DB
-        if (!$user && in_array($email, ['an.nguyen@libranova.vn', 'thuthu@libranova.vn', 'admin@libranova.vn'])) {
-            $this->ensureDefaultSeed();
-            $user = User::where('email', $email)->first();
-        }
-
-        // Kiểm tra tồn tại người dùng
+        // 1. Nếu không tìm thấy người dùng
         if (!$user) {
-            return back()->withErrors(['email' => 'Tài khoản không tồn tại trong hệ thống. Hãy bấm "Đăng ký thẻ độc giả" bên dưới để tạo tài khoản mới.'])->withInput();
+            return back()->withInput($request->only('email', 'remember'))
+                         ->with('error', 'Tài khoản không tồn tại trong hệ thống. Vui lòng kiểm tra lại!');
         }
 
-        // Kiểm tra tài khoản có bị khóa không
+        // 2. Nếu tài khoản đã bị khóa
         if ($user->status === 'locked') {
-            return back()->withErrors(['email' => 'Tài khoản này đã bị khóa an toàn. Bạn có thể nhấn "Quên mật khẩu?" để đặt lại mật khẩu và tự động mở khóa.'])->withInput();
+            return back()->withInput($request->only('email', 'remember'))
+                         ->with('error', 'Tài khoản của bạn đang bị khóa tạm thời. Vui lòng liên hệ Quản trị viên để mở khóa.');
         }
 
-        // 2. Xác thực mật khẩu (hỗ trợ cả Hash bcrypt lẫn mật khẩu demo 123456)
-        $passwordValid = Hash::check($request->password, $user->password) || $request->password === '123456';
+        // 3. KIỂM TRA MẬT KHẨU CHÍNH XÁC
+        // Hỗ trợ kiểm tra hash Bcrypt hoặc nếu mật khẩu demo là 'password'/'123456'
+        $passwordMatches = Hash::check($password, $user->password) 
+                        || ($user->password === 'password' && $password === 'password')
+                        || ($user->password === '123456' && $password === '123456');
 
-        if (!$passwordValid) {
-            $user->increment('failed_login_count');
-
-            if ($user->failed_login_count >= 5) {
-                $user->status = 'locked';
-                $user->save();
-
-                AuditLog::create([
-                    'operator_name' => 'Hệ thống Tự Động',
-                    'operator_role' => 'system',
-                    'action' => 'AUTO_LOCK_ACCOUNT',
-                    'target_id' => (string)$user->id,
-                    'details' => "Tự động khóa tài khoản {$user->email} do nhập sai mật khẩu 5 lần liên tiếp.",
-                    'ip_address' => $request->ip()
-                ]);
-
-                return back()->withErrors(['email' => 'Bạn đã nhập sai mật khẩu 5 lần liên tiếp. Tài khoản đã bị tạm khóa để bảo vệ an toàn.']);
-            }
-
-            return back()->withErrors(['password' => "Mật khẩu không chính xác (Sai lần {$user->failed_login_count}/5). Mật khẩu mặc định là 123456."])->withInput();
+        if (!$passwordMatches) {
+            // MẬT KHẨU SAI -> TỪ CHỐI ĐĂNG NHẬP NGAY LẬP TỨC!
+            return back()->withInput($request->only('email', 'remember'))
+                         ->with('error', 'Mật khẩu không chính xác. Vui lòng thử lại!');
         }
 
-        // 3. Đăng nhập thành công -> Reset số lần nhập sai & Đăng nhập vào Auth Guard
-        $user->failed_login_count = 0;
-        $user->save();
-
-        Auth::login($user, $request->has('remember'));
+        // 4. Mật khẩu đúng -> Đăng nhập thành công
+        Auth::login($user, $remember);
         $request->session()->regenerate();
 
-        // 4. Ghi nhận Audit Log
-        AuditLog::create([
-            'operator_name' => $user->name,
-            'operator_role' => $user->role,
-            'action' => 'LOGIN',
-            'target_id' => (string)$user->id,
-            'details' => "Đăng nhập thành công với vai trò: " . strtoupper($user->role),
-            'ip_address' => $request->ip()
-        ]);
+        try {
+            if (class_exists(AuditLog::class)) {
+                AuditLog::create([
+                    'operator_name' => $user->name,
+                    'operator_role' => $user->role,
+                    'action' => 'LOGIN_SUCCESS',
+                    'target_id' => (string)$user->id,
+                    'details' => "Người dùng {$user->name} ({$user->role}) đăng nhập thành công vào hệ thống.",
+                    'ip_address' => $request->ip()
+                ]);
+            }
+        } catch (\Throwable $e) {}
 
-        // 5. KIỂM TRA ROLE VÀ ĐIỀU HƯỚNG TƯƠNG ỨNG
+        return $this->redirectBasedOnRole($user);
+    }
+
+    /**
+     * Chuyển hướng người dùng dựa vào vai trò
+     */
+    private function redirectBasedOnRole($user)
+    {
         if ($user->role === 'admin') {
-            return redirect()->route('admin.index')->with('success', "Chào mừng Quản trị viên {$user->name} quay trở lại!");
+            return redirect()->route('admin.index')->with('success', 'Chào mừng Quản trị viên ' . $user->name . ' quay trở lại!');
         } elseif ($user->role === 'librarian') {
-            return redirect()->route('librarian.index')->with('success', "Chào mừng Thủ thư {$user->name} đã vào ca làm việc!");
+            return redirect()->route('librarian.index')->with('success', 'Chào mừng Thủ thư ' . $user->name . ' đã vào ca làm việc!');
         } else {
-            return redirect()->route('reader.index')->with('success', "Chào mừng độc giả {$user->name} đến với Thư viện LibraNova!");
+            return redirect()->route('reader.index')->with('success', 'Chào mừng độc giả ' . $user->name . ' đến với Thư viện LibraNova!');
         }
     }
 
     /**
-     * Hiển thị form đăng ký độc giả mới
+     * Tự động tạo sẵn 3 tài khoản mặc định nếu database trống
      */
+    private function ensureDemoAccountsExist()
+    {
+        try {
+            // 1. Độc giả mẫu đã có thẻ
+            User::firstOrCreate(
+                ['email' => 'an.nguyen@libranova.vn'],
+                [
+                    'name' => 'Nguyễn Văn An',
+                    'password' => Hash::make('password'),
+                    'role' => 'reader',
+                    'card_number' => 'LIB-2026-8899',
+                    'card_expiry_date' => Carbon::now()->addYear(),
+                    'status' => 'active',
+                    'phone' => '0912345678',
+                    'address' => 'Hải Châu, Đà Nẵng'
+                ]
+            );
+
+            // 2. Thủ thư
+            User::firstOrCreate(
+                ['email' => 'thuthu@libranova.vn'],
+                [
+                    'name' => 'Trần Thu Thư',
+                    'password' => Hash::make('password'),
+                    'role' => 'librarian',
+                    'card_number' => 'STAFF-LIB-01',
+                    'card_expiry_date' => Carbon::now()->addYears(3),
+                    'status' => 'active',
+                    'phone' => '0988776655',
+                    'address' => 'Khu Văn Phòng Thư Viện'
+                ]
+            );
+
+            // 3. Quản trị viên
+            User::firstOrCreate(
+                ['email' => 'admin@libranova.vn'],
+                [
+                    'name' => 'Phạm Quang Admin',
+                    'password' => Hash::make('password'),
+                    'role' => 'admin',
+                    'card_number' => 'ADMIN-ROOT',
+                    'card_expiry_date' => Carbon::now()->addYears(5),
+                    'status' => 'active',
+                    'phone' => '0909999999',
+                    'address' => 'Ban Giám Hiệu'
+                ]
+            );
+        } catch (\Throwable $e) {}
+    }
+
     public function showRegisterForm()
     {
         return view('auth.register');
     }
 
     /**
-     * Xử lý đăng ký tài khoản độc giả mới
+     * Đăng ký tài khoản khách hàng mới (chưa có thẻ)
      */
     public function register(Request $request)
     {
-        $this->ensureDefaultSeed();
-
         $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|email|max:255|unique:users,email',
-            'password' => 'required|string|min:6|confirmed'
-        ], [
-            'name.required' => 'Vui lòng nhập họ và tên.',
-            'email.required' => 'Vui lòng nhập địa chỉ email.',
-            'email.unique' => 'Email này đã được sử dụng.',
-            'password.required' => 'Vui lòng nhập mật khẩu.',
-            'password.min' => 'Mật khẩu phải từ 6 ký tự trở lên.',
-            'password.confirmed' => 'Mật khẩu xác nhận không khớp.'
+            'email' => 'required|string|email|max:255|unique:users,email',
+            'phone' => 'required|string|max:20',
+            'password' => 'required|string|min:6|confirmed',
         ]);
 
-        $cardNumber = 'LIB-2026-' . rand(1000, 9999);
-
         $user = User::create([
-            'name' => trim($request->name),
+            'name' => $request->name,
             'email' => strtolower(trim($request->email)),
+            'phone' => trim($request->phone),
             'password' => Hash::make($request->password),
-            'role' => 'reader', // Mặc định tài khoản đăng ký công khai là Độc giả
-            'card_number' => $cardNumber,
-            'card_expiry_date' => Carbon::now()->addYear(),
+            'role' => 'reader',
             'status' => 'active',
-            'phone' => $request->phone ?? 'Chưa cập nhật',
-            'address' => $request->address ?? 'Đang cập nhật'
+            'card_number' => null, // Chưa cấp thẻ khi đăng ký online
+            'card_expiry_date' => null,
+            'address' => $request->address ?? 'Khách hàng đăng ký trực tuyến'
         ]);
 
         Auth::login($user);
-        $request->session()->regenerate();
 
-        return redirect()->route('reader.index')->with('success', "🎉 Đăng ký thẻ độc giả thành công! Mã thẻ của bạn là {$cardNumber}.");
+        return redirect()->route('reader.index')->with('success', "🎉 Đăng ký tài khoản thành công! Bạn có thể tra cứu sách. Vui lòng đến quầy thư viện để được cấp thẻ mượn sách.");
     }
 
-    /**
-     * Hiển thị giao diện quên mật khẩu
-     */
-    public function showForgotPasswordForm()
-    {
-        return view('auth.forgot-password');
-    }
-
-    /**
-     * Đặt lại mật khẩu và tự động mở khóa tài khoản
-     */
-    public function resetPasswordDirect(Request $request)
-    {
-        $this->ensureDefaultSeed();
-
-        $request->validate([
-            'email' => 'required|email',
-            'new_password' => 'required|string|min:6'
-        ], [
-            'email.required' => 'Vui lòng nhập email tài khoản.',
-            'new_password.required' => 'Vui lòng nhập mật khẩu mới.',
-            'new_password.min' => 'Mật khẩu mới phải từ 6 ký tự trở lên.'
-        ]);
-
-        $user = User::where('email', strtolower(trim($request->email)))->first();
-
-        if (!$user) {
-            return back()->withErrors(['email' => 'Không tìm thấy tài khoản với email này trong hệ thống.'])->withInput();
-        }
-
-        $user->password = Hash::make($request->new_password);
-        $user->failed_login_count = 0;
-        $user->status = 'active'; // Tự động mở khóa tài khoản
-        $user->save();
-
-        return redirect()->route('login')->with('success', " Đặt lại mật khẩu thành công và tài khoản đã được mở khóa! Bạn có thể đăng nhập ngay.");
-    }
-
-    /**
-     * Đăng xuất an toàn khỏi hệ thống
-     */
     public function logout(Request $request)
     {
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
-        return redirect()->route('login')->with('success', 'Đã đăng xuất an toàn khỏi hệ thống.');
+
+        return redirect()->route('login')->with('success', 'Đã đăng xuất tài khoản an toàn khỏi hệ thống!');
+    }
+
+    public function showForgotPasswordForm()
+    {
+        return view('auth.forgot-password');
+    }
+
+    public function resetPasswordDirect(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email|exists:users,email',
+            'password' => 'required|min:6|confirmed'
+        ]);
+
+        $user = User::where('email', strtolower(trim($request->email)))->first();
+        if ($user) {
+            $user->password = Hash::make($request->password);
+            $user->status = 'active'; // Mở khóa nếu tài khoản bị khóa
+            $user->save();
+
+            return redirect()->route('login')->with('success', 'Đổi mật khẩu thành công! Bạn có thể đăng nhập bằng mật khẩu mới.');
+        }
+
+        return back()->with('error', 'Không tìm thấy tài khoản tương ứng.');
+    }
+
+    /**
+     * Báo cáo sự cố cho Quản Trị Viên
+     */
+    public function reportAdmin(Request $request)
+    {
+        $request->validate([
+            'reporter_info' => 'required|string|max:255',
+            'issue_type' => 'required|string',
+        ]);
+
+        try {
+            if (class_exists(AuditLog::class)) {
+                $detail = "Sự cố: " . $request->issue_type;
+                if ($request->filled('custom_reason')) {
+                    $detail .= " | Chi tiết: " . $request->custom_reason;
+                }
+                AuditLog::create([
+                    'operator_name' => $request->reporter_info,
+                    'operator_role' => 'guest',
+                    'action' => 'REPORT_ISSUE',
+                    'target_id' => 'ADMIN',
+                    'details' => $detail,
+                    'ip_address' => $request->ip()
+                ]);
+            }
+        } catch (\Throwable $e) {}
+
+        return back()->with('success', 'Báo cáo sự cố của bạn đã được gửi tới Ban Quản Trị thành công!');
     }
 }

@@ -89,3 +89,26 @@ Route::prefix('payment')->name('payment.')->group(function () {
     Route::post('/generate-vietqr', [PaymentController::class, 'generateVietQR'])->name('vietqr.generate');
     Route::post('/confirm', [PaymentController::class, 'confirmPayment'])->name('confirm');
 });
+
+Route::post('/report-admin', function (\Illuminate\Http\Request $request) {
+    $info = $request->input('reporter_info');
+    $issue = $request->input('issue_type');
+    $reason = $request->input('custom_reason');
+
+    $details = ($issue === 'Lý do khác') ? $reason : $issue;
+
+    try {
+        if (class_exists(\App\Models\AuditLog::class)) {
+            \App\Models\AuditLog::create([
+                'operator_name' => $info ?? 'Khách / Độc giả',
+                'operator_role' => 'guest',
+                'action' => 'REPORT_TO_ADMIN',
+                'target_id' => 'ADMIN',
+                'details' => "Báo cáo sự cố: [{$issue}] - Nội dung: {$details}",
+                'ip_address' => $request->ip()
+            ]);
+        }
+    } catch (\Throwable $e) {}
+
+    return back()->with('success', 'Báo cáo sự cố của bạn đã được gửi trực tiếp đến Quản trị viên (Admin) thành công!');
+})->name('report.admin');

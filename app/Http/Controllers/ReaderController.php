@@ -21,7 +21,10 @@ class ReaderController extends Controller
      */
     public function index(Request $request)
     {
-        $user = Auth::user() ?? User::where('role', 'reader')->first();
+        if (!Auth::check()) {
+            return redirect()->route('login')->withErrors(['email' => 'Vui lòng đăng nhập để truy cập trang độc giả.']);
+        }
+        $user = Auth::user();
         
         $rules = SystemRule::firstOrCreate([], [
             'max_books_per_loan' => 5,
@@ -38,7 +41,7 @@ class ReaderController extends Controller
 
         $query = Book::with(['category', 'publisher']);
 
-        // 1. Tìm kiếm đa năng (Tên sách, tác giả, ISBN, vị trí kệ, mô tả, NXB, thể loại)
+        // 1. Tìm kiếm đa năng
         if ($request->filled('keyword')) {
             $kw = trim($request->keyword);
             $query->where(function ($q) use ($kw) {
@@ -72,7 +75,7 @@ class ReaderController extends Controller
             }
         }
 
-        // 4. Lọc theo danh sách Thẻ Tag / Thể loại chi tiết
+        // 4. Lọc theo danh sách Thẻ Tag
         if ($request->filled('selected_tags')) {
             $tagList = array_filter(array_map('trim', explode(',', $request->selected_tags)));
             if (!empty($tagList)) {
@@ -94,46 +97,6 @@ class ReaderController extends Controller
 
         $readerId = $user ? $user->id : 1;
 
-        // Tự động khởi tạo dữ liệu mẫu nếu chưa có để độc giả trải nghiệm ngay
-        if ($user) {
-            if (BorrowTicket::where('reader_id', $readerId)->where('status', 'returned')->count() === 0) {
-                $pastBook = Book::where('id', '!=', 1)->first() ?? Book::first();
-                if ($pastBook) {
-                    BorrowTicket::create([
-                        'ticket_code' => 'PM-20260715-002',
-                        'reader_id' => $user->id,
-                        'book_id' => $pastBook->id,
-                        'borrow_date' => Carbon::now()->subMonths(2),
-                        'due_date' => Carbon::now()->subMonths(2)->addDays(14),
-                        'return_date' => Carbon::now()->subMonths(2)->addDays(12),
-                        'status' => 'returned',
-                        'renew_count' => 0,
-                        'overdue_days' => 0,
-                        'fine_amount' => 0,
-                        'payment_status' => 'none',
-                        'created_by_staff' => 'Trần Thu Thư',
-                        'created_at' => Carbon::now()->subMonths(2)
-                    ]);
-                }
-            }
-
-            if (Transaction::where('reader_id', $readerId)->where('type', 'card_renewal')->count() === 0) {
-                Transaction::create([
-                    'transaction_code' => 'CARD-INIT-' . strtoupper(substr(uniqid(), -5)),
-                    'ticket_id' => null,
-                    'reader_id' => $user->id,
-                    'reader_name' => $user->name,
-                    'amount' => $rules->card_renewal_fee ?? 30000,
-                    'type' => 'card_renewal',
-                    'payment_method' => 'vietqr',
-                    'description' => "Gia hạn thẻ thư viện thường niên 1 năm (Mã thẻ: {$user->card_number})",
-                    'status' => 'completed',
-                    'created_at' => Carbon::now()->subMonths(4)
-                ]);
-            }
-        }
-
-        // 1. Toàn bộ Lịch sử mượn - trả sách của độc giả (Bọc an toàn)
         $tickets = collect([]);
         try {
             $ticketQuery = BorrowTicket::where('reader_id', $readerId);
@@ -157,7 +120,6 @@ class ReaderController extends Controller
 
         $totalUnpaidFines = $tickets->where('payment_status', 'unpaid')->sum('fine_amount');
 
-        // 2 & 3. Lịch sử giao dịch tài chính & Gia hạn thẻ (Cơ chế nạp an toàn, chống lỗi 500)
         $cardTransactions = collect([]);
         $allTransactions = collect([]);
 
@@ -169,24 +131,6 @@ class ReaderController extends Controller
                 }
 
                 $allTransactions = $txQuery->orderByDesc('created_at')->get();
-
-                // Tự động gán thông tin ticket & book cho từng transaction mà không gây crash
-                foreach ($allTransactions as $tx) {
-                    if (!empty($tx->ticket_id)) {
-                        $foundTicket = $tickets->firstWhere('id', $tx->ticket_id);
-                        if (!$foundTicket && class_exists(BorrowTicket::class)) {
-                            try {
-                                $foundTicket = BorrowTicket::with('book')->find($tx->ticket_id);
-                            } catch (\Throwable $e) {
-                                $foundTicket = BorrowTicket::find($tx->ticket_id);
-                            }
-                        }
-                        if ($foundTicket) {
-                            $tx->setRelation('ticket', $foundTicket);
-                        }
-                    }
-                }
-
                 $cardTransactions = $allTransactions->where('type', 'card_renewal');
             }
         } catch (\Throwable $txErr) {
@@ -225,6 +169,11 @@ class ReaderController extends Controller
             $user = Auth::user() ?? User::where('role', 'reader')->first();
             if (!$user) {
                 return redirect()->route('login')->with('error', 'Vui lòng đăng nhập tài khoản độc giả để mượn sách.');
+            }
+
+            // CHẶN: Nếu chưa được cấp thẻ
+            if (empty($user->card_number)) {
+                return redirect()->route('reader.index')->with('error', 'Bạn chưa được cấp thẻ! Vui lòng Cấp thẻ Độc Giả');
             }
 
             if ($user->status === 'locked') {
@@ -313,6 +262,11 @@ class ReaderController extends Controller
      */
     public function renewLoan(Request $request, $id)
     {
+        $user = Auth::user();
+        if (!$user || empty($user->card_number)) {
+            return back()->with('error', 'Bạn chưa được cấp thẻ! Vui lòng Cấp thẻ Độc Giả');
+        }
+
         $ticket = BorrowTicket::findOrFail($id);
         $rules = SystemRule::first();
         $maxRenew = $rules ? (int)$rules->max_renewal_times : 2;
@@ -345,9 +299,6 @@ class ReaderController extends Controller
         return back()->with('success', "Gia hạn thành công! Hạn trả mới là: " . Carbon::parse($ticket->due_date)->format('d/m/Y'));
     }
 
-    /**
-     * Đánh giá sách
-     */
     public function rateBook(Request $request)
     {
         $request->validate([
@@ -357,8 +308,8 @@ class ReaderController extends Controller
         ]);
 
         $book = Book::findOrFail($request->book_id);
-        $oldTotal = $book->rating * $book->rating_count;
-        $book->rating_count += 1;
+        $oldTotal = $book->rating * ($book->rating_count ?? 0);
+        $book->rating_count = ($book->rating_count ?? 0) + 1;
         $book->rating = round(($oldTotal + $request->rating) / $book->rating_count, 1);
         $book->save();
 
@@ -370,9 +321,14 @@ class ReaderController extends Controller
      */
     public function renewCard(Request $request)
     {
-        $user = Auth::user();
+        $user = Auth::user() ?? User::where('role', 'reader')->first();
         if (!$user) {
             return back()->with('error', 'Vui lòng đăng nhập để gia hạn thẻ.');
+        }
+
+        // CHẶN: Nếu chưa có thẻ thì không thể gia hạn thẻ
+        if (empty($user->card_number)) {
+            return back()->with('error', 'Bạn chưa được cấp thẻ! Vui lòng Cấp thẻ Độc Giả');
         }
 
         $rules = SystemRule::first();
@@ -399,7 +355,7 @@ class ReaderController extends Controller
                     'description' => "Gia hạn thẻ thư viện thường niên 1 năm (Mã thẻ: {$user->card_number})",
                     'status' => 'completed'
                 ]);
-            }`
+            }
         } catch (\Throwable $txEx) {}
 
         return back()->with('success', "Gia hạn thẻ thư viện thành công! Hạn dùng mới đến " . Carbon::parse($user->card_expiry_date)->format('d/m/Y'));

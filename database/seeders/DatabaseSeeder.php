@@ -33,7 +33,7 @@ class DatabaseSeeder extends Seeder
         // 2. Seed Default Accounts
         $reader = User::create([
             'name' => 'Nguyễn Văn An',
-            'email' => 'an.nguyen@libranova.vn',
+            'email' => 'docgia@gmail.com',
             'password' => Hash::make('123456'),
             'role' => 'reader',
             'card_number' => 'LIB-2026-8899',
@@ -45,7 +45,7 @@ class DatabaseSeeder extends Seeder
 
         $librarian = User::create([
             'name' => 'Trần Thu Thư',
-            'email' => 'thuthu@libranova.vn',
+            'email' => 'thuthu@gmail.com',
             'password' => Hash::make('123456'),
             'role' => 'librarian',
             'status' => 'active',
@@ -55,7 +55,7 @@ class DatabaseSeeder extends Seeder
 
         $admin = User::create([
             'name' => 'Phạm Quang Admin',
-            'email' => 'admin@libranova.vn',
+            'email' => 'admin@gmail.com',
             'password' => Hash::make('123456'),
             'role' => 'admin',
             'status' => 'active',
