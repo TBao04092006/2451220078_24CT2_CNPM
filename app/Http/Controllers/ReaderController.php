@@ -156,6 +156,19 @@ class ReaderController extends Controller
         return $this->index($request);
     }
 
+    public function returnBook($ticketId)
+    {
+        $ticket = BorrowTicket::where('id', $ticketId)
+            ->where('reader_id', Auth::id())
+            ->firstOrFail();
+
+        // Chuyển trạng thái sang 'returning' (Đang gửi trả tại quầy)
+        $ticket->status = 'returning';
+        $ticket->save();
+
+        return redirect()->back()->with('success', 'Đã gửi yêu cầu trả sách cuốn "' . ($ticket->book->title ?? 'Sách') . '" thành công! Vui lòng mang sách lại quầy để Thủ thư kiểm tra và thu hồi.');
+    }
+    
     /**
      * Độc giả gửi yêu cầu mượn sách trực tuyến
      */

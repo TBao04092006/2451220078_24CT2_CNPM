@@ -141,7 +141,11 @@
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 @foreach($activeLoans as $t)
                     @php
-                        $isOverdue = ($t->status === 'overdue' || (int)$t->overdue_days != 0 || (float)$t->fine_amount > 0);
+                        // Kiểm tra nếu đã nộp phạt thì không còn tính là quá hạn
+                        $isPaid = ($t->payment_status === 'paid');
+                        $isReturning = ($t->status === 'returning');
+                        $isOverdue = (($t->status === 'overdue' || (int)$t->overdue_days != 0 || (float)$t->fine_amount > 0) && !$isPaid);
+                        
                         $cleanOverdueDays = abs((int)$t->overdue_days);
                         $cleanFineAmount = abs((float)$t->fine_amount);
                         if ($isOverdue && $cleanFineAmount == 0) {
@@ -153,11 +157,21 @@
                         $bookTitle = $t->book->title ?? 'Sách thư viện';
                         $dueDateFormatted = $t->due_date ? \Carbon\Carbon::parse($t->due_date)->format('d/m/Y') : date('d/m/Y');
                     @endphp
-                    <div class="p-4 rounded-2xl border {{ $isOverdue ? 'border-red-200 bg-red-50/40' : 'border-slate-200 bg-slate-50/50' }} flex flex-col justify-between gap-3">
+                    <div class="p-4 rounded-2xl border {{ $isReturning ? 'border-amber-300 bg-amber-50/50' : ($isPaid ? 'border-emerald-300 bg-emerald-50/30' : ($isOverdue ? 'border-red-200 bg-red-50/40' : 'border-slate-200 bg-slate-50/50')) }} flex flex-col justify-between gap-3 shadow-xs">
                         <div class="space-y-1">
                             <div class="flex items-center justify-between text-[11px]">
                                 <span class="font-mono text-slate-400 font-semibold">#{{ $ticketCode }}</span>
-                                @if($isOverdue)
+                                @if($isReturning)
+                                    <span class="px-2 py-0.5 rounded-md font-bold text-[10px] bg-amber-100 text-amber-900 border border-amber-300 animate-pulse flex items-center gap-1">
+                                        <i data-lucide="clock" class="w-3 h-3 text-amber-600"></i>
+                                        <span>Chờ thủ thư nhận sách</span>
+                                    </span>
+                                @elseif($isPaid)
+                                    <span class="px-2 py-0.5 rounded-md font-bold text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                                        <i data-lucide="check-circle" class="w-3 h-3 text-emerald-600"></i>
+                                        <span>ĐÃ NỘP PHẠT (Hợp lệ)</span>
+                                    </span>
+                                @elseif($isOverdue)
                                     <span class="px-2 py-0.5 rounded-md font-bold text-[10px] bg-red-100 text-red-700">Trễ {{ $cleanOverdueDays }} ngày</span>
                                 @elseif($t->status === 'pending')
                                     <span class="px-2 py-0.5 rounded-md font-bold text-[10px] bg-amber-100 text-amber-800">Chờ nhận sách</span>
@@ -167,19 +181,45 @@
                             </div>
                             <h3 class="font-bold text-sm text-slate-900 line-clamp-1">{{ $bookTitle }}</h3>
                             <p class="text-xs text-slate-500">Tác giả: {{ $t->book->author ?? 'Đang cập nhật' }}</p>
-                            <p class="text-xs text-slate-600 font-medium">Hạn trả: <strong>{{ $dueDateFormatted }}</strong></p>
+                            <p class="text-xs text-slate-600 font-medium">Hạn trả: <strong class="{{ $isOverdue ? 'text-red-600' : ($isPaid ? 'text-emerald-700' : 'text-slate-800') }}">{{ $dueDateFormatted }}</strong></p>
                             
-                            @if($isOverdue && $cleanFineAmount > 0)
+                            {{-- Trạng thái tiền phạt --}}
+                            @if($isPaid)
+                                <div class="p-2 bg-emerald-100/80 rounded-xl text-xs text-emerald-900 font-semibold flex items-center justify-between mt-2 border border-emerald-200">
+                                    <span>Phạt trễ hạn:</span>
+                                    <span class="font-bold text-emerald-800 flex items-center gap-1">
+                                        <i data-lucide="check" class="w-3.5 h-3.5 text-emerald-600 stroke-[3]"></i>
+                                        0đ còn nợ (Đã nộp {{ number_format($cleanFineAmount) }}đ)
+                                    </span>
+                                </div>
+                            @elseif($isOverdue && $cleanFineAmount > 0)
                                 <div class="p-2 bg-red-100/80 rounded-xl text-xs text-red-800 font-semibold flex items-center justify-between mt-2">
                                     <span>Phạt trễ hạn:</span>
-                                    <span class="font-bold text-rose-700">{{ number_format($cleanFineAmount) }}đ</span>
+                                    <span class="font-bold text-rose-700">{{ number_format($cleanFineAmount) }}đ (Chưa nộp)</span>
                                 </div>
                             @endif
                         </div>
 
-                        <!-- Ticket Action Buttons -->
-                        <div class="flex items-center gap-2 pt-2 border-t border-slate-200/60">
-                            @if($t->status !== 'returned' && $t->status !== 'pending')
+                        <!-- Ticket Action Buttons (Nút Trả Sách & Nộp Phạt) -->
+                        <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-200/60">
+                            {{-- NÚT 1: TRẢ SÁCH TẠI QUẦY --}}
+                            @if($isReturning)
+                                <button type="button" disabled class="flex-1 py-1.5 px-2.5 text-xs font-bold bg-amber-100 text-amber-900 rounded-lg border border-amber-300 animate-pulse flex items-center justify-center gap-1 cursor-not-allowed">
+                                    <i data-lucide="clock" class="w-3.5 h-3.5 text-amber-700"></i>
+                                    <span>Đang chờ thủ thư nhận</span>
+                                </button>
+                            @elseif($t->status !== 'pending')
+                                <form action="{{ route('reader.tickets.return', $t->id) }}" method="POST" class="flex-1">
+                                    @csrf
+                                    <button type="submit" onclick="return confirm('Bạn có chắc chắn muốn gửi yêu cầu trả cuốn sách này tại quầy?')" class="w-full py-1.5 px-2.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer">
+                                        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                                        <span>{{ $isPaid ? 'Trả Sách Cho Thủ Thư' : 'Trả Sách Tại Quầy' }}</span>
+                                    </button>
+                                </form>
+                            @endif
+
+                            {{-- NÚT 2: GIA HẠN / NỘP PHẠT --}}
+                            @if($t->status !== 'returned' && $t->status !== 'pending' && !$isReturning)
                                 @if($canRenew)
                                     <button type="button" 
                                         data-id="{{ $t->id }}"
@@ -189,21 +229,18 @@
                                         data-cost="{{ $renewalCost }}"
                                         data-due="{{ $dueDateFormatted }}"
                                         onclick="handleBookRenewalClick(this)"
-                                        class="flex-1 py-1.5 px-2.5 text-xs font-bold {{ $isOverdue ? 'bg-amber-500 hover:bg-amber-600 text-slate-950' : 'bg-indigo-600 hover:bg-indigo-700 text-white' }} rounded-lg shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer">
+                                        class="py-1.5 px-2.5 text-xs font-bold {{ $isOverdue ? 'bg-amber-500 hover:bg-amber-600 text-slate-950' : 'bg-indigo-600 hover:bg-indigo-700 text-white' }} rounded-lg shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap">
                                         <i data-lucide="qr-code" class="w-3.5 h-3.5"></i>
-                                        <span>{{ $isOverdue ? 'Gia hạn (+7 ngày & Nộp phạt)' : 'Gia hạn (+7 ngày)' }}</span>
-                                    </button>
-                                @else
-                                    <button type="button" disabled title="Đã hết lượt gia hạn tối đa" class="flex-1 py-1.5 px-2.5 text-xs font-semibold bg-slate-100 text-slate-400 rounded-lg border border-slate-200 cursor-not-allowed">
-                                        Hết lượt gia hạn ({{ $t->renew_count }}/{{ $maxRenews }})
+                                        <span>{{ $isOverdue ? 'Gia hạn & Nộp phạt' : '+7 ngày' }}</span>
                                     </button>
                                 @endif
                             @endif
+
                             <button type="button" 
                                 data-id="{{ $t->book_id }}" 
                                 data-title="{{ htmlspecialchars($t->book->title ?? '', ENT_QUOTES) }}" 
                                 onclick="openRateModal(this.dataset.id, this.dataset.title)" 
-                                class="p-1.5 text-amber-500 hover:bg-amber-50 rounded-lg border border-slate-200 transition"
+                                class="p-1.5 text-amber-500 hover:bg-amber-50 rounded-lg border border-slate-200 transition cursor-pointer"
                                 title="Đánh giá sách">
                                 <i data-lucide="star" class="w-3.5 h-3.5"></i>
                             </button>

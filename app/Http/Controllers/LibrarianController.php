@@ -81,15 +81,15 @@ class LibrarianController extends Controller
         $categoryId = $request->category_id;
         if (!empty($request->category_name)) {
             $cat = Category::firstOrCreate(
-                ['name' => trim($request->category_name)],
-                ['code' => 'CAT-' . strtoupper(substr(md5($request->category_name), 0, 6))]
+                ['name' => trim($request->category_name)]
             );
             $categoryId = $cat->id;
         } elseif (empty($categoryId)) {
-            $defaultCat = Category::firstOrCreate(['name' => 'Tổng Hợp'], ['code' => 'TONG-HOP']);
+            $defaultCat = Category::firstOrCreate(
+                ['name' => 'Tổng Hợp']
+            );
             $categoryId = $defaultCat->id;
         }
-
         $description = $request->description ?? '';
         if (!empty($request->selected_tags)) {
             $tagText = "Thẻ thể loại chi tiết: " . $request->selected_tags;
@@ -238,6 +238,26 @@ class LibrarianController extends Controller
         ]);
 
         return back()->with('success', "🎉 Cấp thẻ độc giả thành công! Tài khoản [{$reader->name}] (Email: {$reader->email} - SĐT: {$reader->phone}) đã được cấp Mã thẻ: {$cardNumber}.");
+    }
+
+    public function confirmReturn($ticketId)
+    {
+        $ticket = BorrowTicket::findOrFail($ticketId);
+
+        // 1. Cập nhật phiếu mượn sang 'returned'
+        $ticket->status = 'returned';
+        $ticket->return_date = now()->toDateString();
+        $ticket->save();
+
+        // 2. Tăng số lượng tồn khả dụng trong kho sách (+1)
+        if ($ticket->book_id) {
+            $book = Book::find($ticket->book_id);
+            if ($book) {
+                $book->increment('available_qty');
+            }
+        }
+
+        return redirect()->back()->with('success', 'Đã xác nhận thu hồi sách thành công! Sách đã được cộng lại vào kho khả dụng.');
     }
 
     public function renewReaderCard(Request $request, $id)
@@ -489,7 +509,8 @@ class LibrarianController extends Controller
             'ip_address' => $request->ip()
         ]);
 
-        return back()->with('success', "Xử lý trả sách thành công! Đã hoàn tồn kho cuốn '{$book->title}'.");
+        $bookTitle = $book ? $book->title : 'sách';
+        return back()->with('success', "Xử lý trả sách thành công! Đã hoàn tồn kho cuốn '{$bookTitle}'.");
     }
 
     public function returnBook(Request $request, $ticketId)

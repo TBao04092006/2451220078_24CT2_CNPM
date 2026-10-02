@@ -112,3 +112,14 @@ Route::post('/report-admin', function (\Illuminate\Http\Request $request) {
 
     return back()->with('success', 'Báo cáo sự cố của bạn đã được gửi trực tiếp đến Quản trị viên (Admin) thành công!');
 })->name('report.admin');
+
+// Route Độc Giả: Trả sách & nộp phạt
+Route::middleware(['auth'])->group(function () {
+    Route::post('/reader/tickets/{id}/return', [ReaderController::class, 'returnBook'])->name('reader.tickets.return');
+    Route::post('/payment/fine/{id}/confirm', [PaymentController::class, 'confirmFinePayment'])->name('payment.fine.confirm');
+});
+
+// Route Thủ Thư: Xác nhận thu hồi sách
+Route::middleware(['auth'])->group(function () {
+    Route::post('/librarian/tickets/{id}/confirm-return', [LibrarianController::class, 'confirmReturn'])->name('librarian.tickets.confirm-return');
+});

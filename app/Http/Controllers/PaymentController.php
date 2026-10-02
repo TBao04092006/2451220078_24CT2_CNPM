@@ -46,6 +46,45 @@ class PaymentController extends Controller
     /**
      * Xác nhận thanh toán trực tuyến và cập nhật dữ liệu ngay lập tức
      */
+    // Xác nhận nộp phạt qua VietQR / Chuyển khoản
+    public function confirmFinePayment(Request $request, $ticketId)
+    {
+        $ticket = BorrowTicket::findOrFail($ticketId);
+
+        // 1. Cập nhật trạng thái phiếu mượn sang ĐÃ NỘP PHẠT
+        $ticket->payment_status = 'paid';
+        $ticket->payment_method = $request->input('payment_method', 'vietqr');
+        
+        // Nếu độc giả chọn đồng thời trả sách -> chuyển trạng thái chờ thủ thư nhận
+        if ($request->has('also_return') && $request->also_return) {
+            $ticket->status = 'returning'; // Trạng thái độc giả gửi trả sách tại quầy
+        } elseif ($ticket->status === 'overdue') {
+            $ticket->status = 'borrowing'; // Gỡ trạng thái quá hạn
+        }
+        $ticket->save();
+
+        // 2. Mở khóa tài khoản độc giả nếu trước đó bị khóa vì nợ phạt
+        $reader = $ticket->reader ?? Auth::user();
+        if ($reader && $reader->status === 'locked') {
+            $reader->status = 'active';
+            $reader->save();
+        }
+
+        // 3. Ghi log giao dịch thanh toán
+        Transaction::create([
+            'transaction_code' => 'TXN-' . strtoupper(uniqid()),
+            'ticket_id' => $ticket->id,
+            'reader_id' => $ticket->reader_id,
+            'amount' => $ticket->fine_amount,
+            'type' => 'fine',
+            'payment_method' => $ticket->payment_method,
+            'description' => 'Thanh toán tiền phạt trễ hạn phiếu #' . $ticket->ticket_code . ($ticket->status === 'returning' ? ' (Gửi kèm yêu cầu trả sách)' : ''),
+            'status' => 'completed',
+        ]);
+
+        return redirect()->back()->with('success', 'Nộp phạt thành công! Phiếu đã cập nhật sang trạng thái ĐÃ NỘP PHẠT' . ($ticket->status === 'returning' ? ' và đã gửi thông báo trả sách tới Thủ Thư.' : '.'));
+    }
+    
     public function confirmPayment(Request $request)
     {
         try {
@@ -147,7 +186,6 @@ class PaymentController extends Controller
                     $ticket->overdue_days = 0;
                     $ticket->fine_amount = 0;
                     $ticket->payment_status = 'paid';
-                    $ticket->payment_method = $method;
                     $ticket->save();
 
                     // Cập nhật DB trực tiếp đảm bảo dữ liệu luôn được lưu vào SQL Server
@@ -158,17 +196,14 @@ class PaymentController extends Controller
                         'overdue_days' => 0,
                         'fine_amount' => 0,
                         'payment_status' => 'paid',
-                        'payment_method' => $method
                     ]);
                 } else {
                     // Chỉ nộp phạt trễ hạn
                     $ticket->payment_status = 'paid';
-                    $ticket->payment_method = $method;
                     $ticket->save();
 
                     BorrowTicket::where('id', $ticket->id)->update([
                         'payment_status' => 'paid',
-                        'payment_method' => $method
                     ]);
                 }
 
@@ -217,7 +252,6 @@ class PaymentController extends Controller
                 $paidTotal = 0;
                 foreach ($unpaidTickets as $t) {
                     $t->payment_status = 'paid';
-                    $t->payment_method = $method;
                     $t->save();
                     $paidTotal += abs((int)$t->fine_amount);
                 }
@@ -226,7 +260,6 @@ class PaymentController extends Controller
                     ->where('payment_status', 'unpaid')
                     ->update([
                         'payment_status' => 'paid',
-                        'payment_method' => $method
                     ]);
 
                 $totalAmount = $amount > 0 ? $amount : $paidTotal;
