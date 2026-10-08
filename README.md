@@ -1,8 +1,22 @@
 # Hệ Thống Quản Lý Thư Viện Tự Động Hóa - QuanLiThuVien (Laravel & MySQL)
 
-Hệ thống quản lý thư viện trực tuyến xây dựng trên nền tảng **Laravel (PHP)** kết hợp hệ quản trị cơ sở dữ liệu **MySQL / SQL Server (SSMS - `QuanLiThuVien.sql`)**.
+Hệ thống quản lý thư viện trực tuyến xây dựng trên nền tảng **Laravel Framework (PHP)** và cơ sở dữ liệu **MySQL Database (`QuanLiThuVien.sql`)**.
 
-## Kiến Trúc Hệ Thống & Cơ Sở Dữ Liệu (MySQL Database)
+## System Architecture & Database Specification
+
+- **Primary Database Engine:** MySQL Database (Engine: InnoDB, Port: 3306)
+- **Database Schema File:** `QuanLiThuVien.sql`
+- **All Eloquent Models strictly persist to MySQL Database:**
+  - `Book.php` -> MySQL table `books`
+  - `BorrowTicket.php` -> MySQL table `borrow_tickets`
+  - `Transaction.php` -> MySQL table `transactions`
+  - `User.php` -> MySQL table `users`
+  - `Category.php` -> MySQL table `categories`
+  - `Publisher.php` -> MySQL table `publishers`
+  - `SystemRule.php` -> MySQL table `system_rules`
+  - `AuditLog.php` -> MySQL table `audit_logs`
+
+## Kiến Trúc Hệ Thống
 
 - **Frontend (Blade Views):**
   - `resources/views/reader/index.blade.php` (Giao diện Độc giả)
@@ -16,14 +30,3 @@ Hệ thống quản lý thư viện trực tuyến xây dựng trên nền tản
   - `app/Http/Controllers/AdminController.php`
   - `app/Http/Controllers/PaymentController.php`
   - `app/Http/Controllers/AuthController.php`
-- **Database Engine: MySQL Database (`QuanLiThuVien.sql` & `config/database.php`):**
-  - Hệ quản trị cơ sở dữ liệu **MySQL / SQL Server (SSMS)** lưu trữ toàn bộ bảng dữ liệu trong file `QuanLiThuVien.sql` và cấu hình tại `config/database.php`.
-  - Tất cả các Eloquent Models trong `app/Models/` đều kết nối và truy vấn trực tiếp vào **MySQL Database (`QuanLiThuVien.sql`)**:
-    - `app/Models/Book.php` (Bảng `books`)
-    - `app/Models/BorrowTicket.php` (Bảng `borrow_tickets`)
-    - `app/Models/Transaction.php` (Bảng `transactions`)
-    - `app/Models/User.php` (Bảng `users`)
-    - `app/Models/Category.php` (Bảng `categories`)
-    - `app/Models/Publisher.php` (Bảng `publishers`)
-    - `app/Models/SystemRule.php` (Bảng `system_rules`)
-    - `app/Models/AuditLog.php` (Bảng `audit_logs`)
